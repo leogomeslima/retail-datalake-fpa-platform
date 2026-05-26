@@ -1,0 +1,139 @@
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment: &airflow-environment
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:?Defina AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD:?Defina AIRFLOW_DB_PASSWORD}@postgres_airflow:5432/${AIRFLOW_DB_NAME:?Defina AIRFLOW_DB_NAME}
+    AIRFLOW_CONN_RETAIL_DW: postgresql://${POSTGRES_USER:?Defina POSTGRES_USER}:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}@postgres_dw:5432/${POSTGRES_DB:?Defina POSTGRES_DB}
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:?Defina AIRFLOW__CORE__FERNET_KEY}
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/retail/dags
+    AIRFLOW_USER: ${AIRFLOW_USER:?Defina AIRFLOW_USER}
+    AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD:?Defina AIRFLOW_PASSWORD}
+    PYTHONPATH: /opt/airflow/retail
+    POSTGRES_HOST: postgres_dw
+    POSTGRES_PORT: 5432
+    POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB}
+    POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+    DATA_LAKE_BASE_PATH: /opt/airflow/retail/data
+    PIPELINE_VERSION: 1.0.0
+  volumes:
+    - ./:/opt/airflow/retail
+    - airflow_logs:/opt/airflow/logs
+
+services:
+  postgres_dw:
+    image: postgres:15-alpine
+    container_name: retail_dw
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Defina POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Defina POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dw_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./database/seed_lojas.sql:/docker-entrypoint-initdb.d/02_seed_lojas.sql:ro
+      - ./database/seed_produtos.sql:/docker-entrypoint-initdb.d/03_seed_produtos.sql:ro
+      - ./database/seed_dim_tempo.sql:/docker-entrypoint-initdb.d/04_seed_dim_tempo.sql:ro
+      - ./database/seed_orcamento.sql:/docker-entrypoint-initdb.d/05_seed_orcamento.sql:ro
+      - ./database/views.sql:/docker-entrypoint-initdb.d/06_views.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:?Defina POSTGRES_USER} -d ${POSTGRES_DB:?Defina POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres_airflow:
+    image: postgres:15-alpine
+    container_name: airflow_metadata_db
+    environment:
+      POSTGRES_DB: ${AIRFLOW_DB_NAME:?Defina AIRFLOW_DB_NAME}
+      POSTGRES_USER: ${AIRFLOW_DB_USER:?Defina AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Defina AIRFLOW_DB_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_airflow_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_DB_USER:?Defina AIRFLOW_DB_USER} -d ${AIRFLOW_DB_NAME:?Defina AIRFLOW_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: retail_airflow_init
+    depends_on:
+      postgres_airflow:
+        condition: service_healthy
+      postgres_dw:
+        condition: service_healthy
+    command:
+      - bash
+      - -c
+      - airflow db migrate && airflow users create --username "$${AIRFLOW_USER}" --password "$${AIRFLOW_PASSWORD}" --firstname Admin --lastname User --role Admin --email admin@example.com || true
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: retail_airflow_webserver
+    command: webserver
+    ports:
+      - "${AIRFLOW_WEBSERVER_PORT:-8080}:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: retail_airflow_scheduler
+    command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+
+  api:
+    <<: *airflow-common
+    container_name: retail_metrics_api
+    entrypoint: ["python", "-m", "uvicorn"]
+    command: ["api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres_dw:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: retail_metrics_frontend
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_dw_data:
+  postgres_airflow_data:
+  airflow_logs:
+  frontend_node_modules:
