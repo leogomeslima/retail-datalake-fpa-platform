@@ -1,0 +1,18 @@
+export function Navigation({ active }) {
+  return (
+    <nav className="module-navigation" aria-label="Módulos RetailCo">
+      <a className={active === "dashboard" ? "active" : ""} href="/">
+        Indicadores FP&A
+      </a>
+      <a className={active === "evolution" ? "active" : ""} href="/evolucao">
+        Evolução de Lojas
+      </a>
+      <a className={active === "forecast" ? "active" : ""} href="/forecast">
+        Ajuste de Forecast
+      </a>
+      <a className={active === "pdv" ? "active" : ""} href="/pdv">
+        Operação PDV
+      </a>
+    </nav>
+  );
+}
