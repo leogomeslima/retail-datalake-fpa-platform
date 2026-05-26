@@ -1,0 +1,11 @@
+{
+  "ano": 2026,
+  "orcamentos": [
+    {"loja_id": 1, "receita_mensal": 680000.00, "margem_bruta_orcada": 39.00, "despesas_fixas_orcadas": 45000.00},
+    {"loja_id": 2, "receita_mensal": 290000.00, "margem_bruta_orcada": 38.00, "despesas_fixas_orcadas": 28000.00},
+    {"loja_id": 3, "receita_mensal": 510000.00, "margem_bruta_orcada": 39.00, "despesas_fixas_orcadas": 35000.00},
+    {"loja_id": 4, "receita_mensal": 820000.00, "margem_bruta_orcada": 40.00, "despesas_fixas_orcadas": 52000.00},
+    {"loja_id": 5, "receita_mensal": 390000.00, "margem_bruta_orcada": 38.50, "despesas_fixas_orcadas": 30000.00}
+  ]
+}
+

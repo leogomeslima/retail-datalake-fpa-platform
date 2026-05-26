@@ -1,0 +1,16 @@
+[
+  {"produto_id": 501, "categoria": "Informática", "subcategoria": "Notebooks", "produto_nome": "Notebook Dell Inspiron 15", "marca": "Dell", "preco_base": 3500.00, "custo_base": 2100.00},
+  {"produto_id": 502, "categoria": "Informática", "subcategoria": "Notebooks", "produto_nome": "Notebook Lenovo IdeaPad", "marca": "Lenovo", "preco_base": 2800.00, "custo_base": 1680.00},
+  {"produto_id": 503, "categoria": "Celulares", "subcategoria": "Smartphones", "produto_nome": "Samsung Galaxy A54", "marca": "Samsung", "preco_base": 1800.00, "custo_base": 990.00},
+  {"produto_id": 504, "categoria": "Celulares", "subcategoria": "Smartphones", "produto_nome": "iPhone 14", "marca": "Apple", "preco_base": 5500.00, "custo_base": 3300.00},
+  {"produto_id": 505, "categoria": "Eletrônicos", "subcategoria": "TVs", "produto_nome": "Smart TV LG 55", "marca": "LG", "preco_base": 2900.00, "custo_base": 1600.00},
+  {"produto_id": 506, "categoria": "Eletrônicos", "subcategoria": "Áudio", "produto_nome": "Fone JBL Bluetooth", "marca": "JBL", "preco_base": 350.00, "custo_base": 140.00},
+  {"produto_id": 507, "categoria": "Eletrodomésticos", "subcategoria": "Linha Branca", "produto_nome": "Geladeira Brastemp 400L", "marca": "Brastemp", "preco_base": 3200.00, "custo_base": 1920.00},
+  {"produto_id": 508, "categoria": "Eletrodomésticos", "subcategoria": "Linha Branca", "produto_nome": "Máquina de Lavar 11kg", "marca": "Electrolux", "preco_base": 1900.00, "custo_base": 1140.00},
+  {"produto_id": 509, "categoria": "Móveis", "subcategoria": "Escritório", "produto_nome": "Cadeira Gamer", "marca": "ThunderX", "preco_base": 1200.00, "custo_base": 600.00},
+  {"produto_id": 510, "categoria": "Móveis", "subcategoria": "Escritório", "produto_nome": "Mesa Standing Desk", "marca": "ErgoDesk", "preco_base": 1800.00, "custo_base": 900.00},
+  {"produto_id": 511, "categoria": "Acessórios", "subcategoria": "Informática", "produto_nome": "Mouse Logitech MX Master", "marca": "Logitech", "preco_base": 450.00, "custo_base": 180.00},
+  {"produto_id": 512, "categoria": "Acessórios", "subcategoria": "Informática", "produto_nome": "Teclado Mecânico", "marca": "Redragon", "preco_base": 380.00, "custo_base": 152.00},
+  {"produto_id": 513, "categoria": "Suprimentos", "subcategoria": "Impressão", "produto_nome": "Toner HP Original", "marca": "HP", "preco_base": 280.00, "custo_base": 140.00},
+  {"produto_id": 514, "categoria": "Suprimentos", "subcategoria": "Escritório", "produto_nome": "Resma de Papel A4", "marca": "Chamex", "preco_base": 45.00, "custo_base": 22.00}
+]

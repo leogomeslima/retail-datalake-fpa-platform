@@ -1,0 +1,7 @@
+[
+  {"loja_id": 1, "loja_nome": "Loja Centro", "cidade": "São Paulo", "estado": "SP", "regiao": "Sudeste", "data_abertura": "2018-03-01", "tier": "PREMIUM", "area_m2": 850, "capacidade_max": 420},
+  {"loja_id": 2, "loja_nome": "Loja Norte", "cidade": "Manaus", "estado": "AM", "regiao": "Norte", "data_abertura": "2019-07-15", "tier": "STANDARD", "area_m2": 510, "capacidade_max": 260},
+  {"loja_id": 3, "loja_nome": "Loja Campinas", "cidade": "Campinas", "estado": "SP", "regiao": "Sudeste", "data_abertura": "2020-01-10", "tier": "STANDARD", "area_m2": 640, "capacidade_max": 330},
+  {"loja_id": 4, "loja_nome": "Loja Rio", "cidade": "Rio de Janeiro", "estado": "RJ", "regiao": "Sudeste", "data_abertura": "2017-11-20", "tier": "PREMIUM", "area_m2": 920, "capacidade_max": 470},
+  {"loja_id": 5, "loja_nome": "Loja BH", "cidade": "Belo Horizonte", "estado": "MG", "regiao": "Sudeste", "data_abertura": "2021-05-05", "tier": "STANDARD", "area_m2": 570, "capacidade_max": 285}
+]
