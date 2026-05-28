@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.pdv import router as pdv_router
 from api.repository import (
+    alerts_center,
     competences,
     dashboard,
     data_quality_status,
@@ -94,6 +95,19 @@ def get_store_detail(
     """Retorna visão detalhada de desempenho, qualidade e previsão de uma loja."""
     try:
         data = store_detail(engine, store_id, forecast_months)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return {
+        "updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "data": data,
+    }
+
+
+@app.get("/api/alerts")
+def get_alerts(days: int = Query(default=14, ge=1, le=90)) -> dict[str, object]:
+    """Retorna alertas acionáveis de negócio, qualidade, pipeline e forecast."""
+    try:
+        data = alerts_center(engine, days)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     return {

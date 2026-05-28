@@ -52,3 +52,18 @@ def test_store_detail_returns_404_when_store_is_missing(monkeypatch: pytest.Monk
 
     assert raised.value.status_code == 404
     assert raised.value.detail == "Loja 99 não encontrada."
+
+
+def test_alerts_returns_404_when_dw_has_no_competence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Converte ausência de dados em resposta clara para a central de alertas."""
+
+    def raise_empty_dw(engine: object, days: int) -> dict[str, object]:
+        raise ValueError("Nenhuma competência carregada no DW.")
+
+    monkeypatch.setattr(main, "alerts_center", raise_empty_dw)
+
+    with pytest.raises(HTTPException) as raised:
+        main.get_alerts(14)
+
+    assert raised.value.status_code == 404
+    assert raised.value.detail == "Nenhuma competência carregada no DW."

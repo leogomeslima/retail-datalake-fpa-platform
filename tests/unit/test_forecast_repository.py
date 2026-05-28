@@ -8,6 +8,7 @@ from api.repository import (
     linear_regression,
     next_competence,
     regression_prediction,
+    severity_counts,
 )
 
 
@@ -66,3 +67,19 @@ def test_regression_prediction_returns_backtest_and_interval() -> None:
 def test_approval_rate_calculates_valid_record_percentage() -> None:
     assert approval_rate(100, 3) == 97.0
     assert approval_rate(0, 0) == 100.0
+
+
+def test_severity_counts_groups_alerts_by_priority() -> None:
+    alerts = [
+        {"severity": "CRITICO"},
+        {"severity": "ALTO"},
+        {"severity": "ALTO"},
+        {"severity": "INFO"},
+    ]
+
+    assert severity_counts(alerts) == {
+        "CRITICO": 1,
+        "ALTO": 2,
+        "MEDIO": 0,
+        "INFO": 1,
+    }

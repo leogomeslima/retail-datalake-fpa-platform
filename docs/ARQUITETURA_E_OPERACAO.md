@@ -408,6 +408,15 @@ arquivos. A API cruza `processed_files` e `pipeline_audit_log` para apresentar t
 aprovação, rejeições, reprocessamentos, cobertura por loja, últimas tarefas executadas e
 rastreabilidade dos arquivos carregados no Data Warehouse.
 
+### Central de Alertas
+
+Rota: `http://localhost:5173/alertas`
+
+A página consome `GET /api/alerts` e transforma métricas em ações priorizadas. O backend
+classifica alertas por severidade e tipo, avaliando meta, queda de receita, margem,
+cancelamentos, qualidade, pipeline e diferença entre forecast gerencial e previsão ML.
+Alertas ligados a uma loja apontam para `http://localhost:5173/lojas/{id}`.
+
 ## Monitoramento e Auditoria
 
 | Evidência | Local |

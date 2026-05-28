@@ -19,6 +19,9 @@ export function Navigation({ active }) {
       <a className={active === "quality" ? "active" : ""} href="/qualidade">
         Qualidade
       </a>
+      <a className={active === "alerts" ? "active" : ""} href="/alertas">
+        Alertas
+      </a>
       <a className={active === "pdv" ? "active" : ""} href="/pdv">
         Operação PDV
       </a>

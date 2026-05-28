@@ -275,6 +275,49 @@ Resposta `200` para `/api/stores/1?forecast_months=6`:
 
 Resposta `404` quando a loja não existe ou não possui histórico realizado.
 
+### `GET /api/alerts`
+
+Retorna alertas acionáveis calculados a partir de metas, evolução, qualidade, pipeline,
+cancelamentos, margem e diferença entre forecast gerencial e previsão ML.
+
+Parâmetros:
+
+| Parâmetro | Tipo | Regra |
+| --- | --- | --- |
+| `days` | inteiro | Janela de qualidade entre `1` e `90`; padrão `14` |
+
+Resposta `200` para `/api/alerts?days=14`:
+
+```json
+{
+  "updated_at": "2026-05-28T10:40:00+00:00",
+  "data": {
+    "latest_competence": "2026-05",
+    "days": 14,
+    "summary": {
+      "CRITICO": 0,
+      "ALTO": 0,
+      "MEDIO": 4,
+      "INFO": 0
+    },
+    "total": 4,
+    "alerts": [
+      {
+        "type": "FORECAST",
+        "severity": "MEDIO",
+        "entity": "Loja Centro",
+        "loja_id": 1,
+        "title": "Forecast divergente em Loja Centro",
+        "route": "/lojas/1"
+      }
+    ],
+    "rules": []
+  }
+}
+```
+
+Resposta `404` quando ainda não existe competência carregada no Data Warehouse.
+
 ### `GET /api/ml-forecast`
 
 Retorna uma previsão estatística mensal baseada no histórico realizado. A API usa uma

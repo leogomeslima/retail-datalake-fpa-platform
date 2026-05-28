@@ -338,6 +338,7 @@ docker compose --env-file .env.example up -d --build api frontend
 - Ajuste de forecast: `http://localhost:5173/forecast`
 - Previsão ML: `http://localhost:5173/previsao-ml`
 - Qualidade dos dados: `http://localhost:5173/qualidade`
+- Central de alertas: `http://localhost:5173/alertas`
 - API: `http://localhost:8000/api/health`
 - Swagger: `http://localhost:8000/docs`
 
@@ -395,6 +396,13 @@ A página `http://localhost:5173/qualidade` monitora a saúde do fluxo de arquiv
 consolida `processed_files` e `pipeline_audit_log` para mostrar taxa de aprovação,
 arquivos processados, reprocessamentos, rejeições, duração média das tarefas, cobertura
 por loja na última data e rastreabilidade dos arquivos mais recentes.
+
+### Central de Alertas
+
+A página `http://localhost:5173/alertas` prioriza desvios relevantes do projeto. Ela
+classifica alertas por severidade e tipo, cobrindo meta, queda de receita, margem baixa,
+cancelamentos, qualidade dos arquivos, falhas de pipeline e divergência entre forecast
+gerencial e previsão ML. Alertas de loja apontam diretamente para o drill-down da unidade.
 
 ## Documentação
 

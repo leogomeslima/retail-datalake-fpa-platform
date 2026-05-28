@@ -149,6 +149,14 @@ def approval_rate(read_records: int | float, invalid_records: int | float) -> fl
     return round(max(0.0, (read - invalid) / read * 100), 2)
 
 
+def severity_counts(alerts: list[dict[str, Any]]) -> dict[str, int]:
+    """Agrupa alertas por severidade para resumo executivo."""
+    return {
+        severity: sum(1 for alert in alerts if alert["severity"] == severity)
+        for severity in ["CRITICO", "ALTO", "MEDIO", "INFO"]
+    }
+
+
 def serialize(value: Any) -> Any:
     """Converte valores do banco em valores escalares serializáveis em JSON."""
     if isinstance(value, Decimal):
@@ -890,4 +898,244 @@ def store_detail(engine: Engine, store_id: int, forecast_months: int) -> dict[st
         "recent_files": recent_files,
         "forecast_projection": forecast_projection,
         "ml_prediction": ml_prediction,
+    }
+
+
+def alerts_center(engine: Engine, days: int) -> dict[str, Any]:
+    """Gera alertas acionáveis a partir de metas, qualidade, pipeline e previsão."""
+    available = competences(engine)
+    if not available:
+        raise ValueError("Nenhuma competência carregada no DW.")
+
+    latest = available[0]
+    year, month = (int(part) for part in latest.split("-"))
+    snapshot = dashboard(engine, latest)
+    quality = data_quality_status(engine, days)
+    forecast_data = forecast(engine, 3, 0)
+    ml_data = ml_forecast(engine, 3)
+    alerts: list[dict[str, Any]] = []
+
+    def add_alert(
+        alert_type: str,
+        severity: str,
+        title: str,
+        description: str,
+        action: str,
+        entity: str = "Rede",
+        store_id: int | None = None,
+        metric_value: float | int | None = None,
+        threshold: str | None = None,
+    ) -> None:
+        alerts.append(
+            {
+                "id": f"{latest}-{alert_type}-{store_id or 'rede'}-{len(alerts) + 1}",
+                "type": alert_type,
+                "severity": severity,
+                "entity": entity,
+                "loja_id": store_id,
+                "title": title,
+                "description": description,
+                "action": action,
+                "metric_value": round(float(metric_value), 2) if metric_value is not None else None,
+                "threshold": threshold,
+                "route": f"/lojas/{store_id}" if store_id else "/qualidade",
+                "competencia": latest,
+            }
+        )
+
+    for store in snapshot["stores"]:
+        store_id = int(store["loja_id"])
+        store_name = str(store["loja_nome"])
+        target_variance = float(store["variacao_pct"] or 0)
+        growth = float(store["crescimento_mom"] or 0)
+        if store["status_semaforo"] == "VERMELHO":
+            add_alert(
+                "META",
+                "CRITICO" if target_variance <= -20 else "ALTO",
+                f"{store_name} abaixo da meta",
+                f"A loja está {abs(target_variance):.1f}% abaixo do orçamento da competência.",
+                (
+                    "Abrir o detalhe da loja e revisar receita, canais e produtos "
+                    "que mais explicam o desvio."
+                ),
+                store_name,
+                store_id,
+                target_variance,
+                "Meta mínima de 80% do orçamento",
+            )
+        elif store["status_semaforo"] == "AMARELO":
+            add_alert(
+                "META",
+                "MEDIO",
+                f"{store_name} perto de ficar abaixo da meta",
+                "A loja está na faixa amarela de atingimento e merece acompanhamento.",
+                "Monitorar o run rate e comparar o forecast da loja com o orçamento.",
+                store_name,
+                store_id,
+                target_variance,
+                "Meta saudável acima de 95%",
+            )
+        if growth <= -10:
+            add_alert(
+                "RECEITA",
+                "ALTO" if growth <= -18 else "MEDIO",
+                f"Queda de receita em {store_name}",
+                f"A receita mensal caiu {abs(growth):.1f}% contra a competência anterior.",
+                "Verificar mix de produtos, canais e status de vendas no drill-down da loja.",
+                store_name,
+                store_id,
+                growth,
+                "Queda superior a 10% mês contra mês",
+            )
+
+    margins = fetch_all(
+        engine,
+        """
+        SELECT loja_id, loja_nome, margem_pct
+        FROM vw_ranking_lojas
+        WHERE ano = :ano AND mes = :mes
+        ORDER BY margem_pct
+        """,
+        {"ano": year, "mes": month},
+    )
+    for row in margins:
+        margin = float(row["margem_pct"] or 0)
+        if margin < 25:
+            add_alert(
+                "MARGEM",
+                "ALTO" if margin < 20 else "MEDIO",
+                f"Margem baixa em {row['loja_nome']}",
+                f"A margem bruta da loja está em {margin:.1f}%.",
+                "Analisar produtos de menor margem e descontos no detalhe da loja.",
+                str(row["loja_nome"]),
+                int(row["loja_id"]),
+                margin,
+                "Margem bruta mínima de 25%",
+            )
+
+    cancellation_rows = fetch_all(
+        engine,
+        """
+        SELECT
+            v.loja_id, l.loja_nome,
+            COUNT(*) FILTER (WHERE v.status = 'CANCELADA') canceladas,
+            COUNT(*) total_registros,
+            COALESCE(
+                COUNT(*) FILTER (WHERE v.status = 'CANCELADA')::NUMERIC /
+                NULLIF(COUNT(*), 0) * 100, 0
+            ) cancelamento_pct
+        FROM fato_vendas v
+        JOIN dim_loja l ON l.loja_id = v.loja_id
+        WHERE v.ano = :ano AND v.mes = :mes
+        GROUP BY v.loja_id, l.loja_nome
+        ORDER BY cancelamento_pct DESC
+        """,
+        {"ano": year, "mes": month},
+    )
+    for row in cancellation_rows:
+        cancellation_rate = float(row["cancelamento_pct"] or 0)
+        if cancellation_rate >= 8:
+            add_alert(
+                "CANCELAMENTO",
+                "ALTO" if cancellation_rate >= 12 else "MEDIO",
+                f"Cancelamento elevado em {row['loja_nome']}",
+                f"A taxa de cancelamento está em {cancellation_rate:.1f}% na competência.",
+                "Revisar status operacional, canais e possíveis motivos de cancelamento.",
+                str(row["loja_nome"]),
+                int(row["loja_id"]),
+                cancellation_rate,
+                "Taxa de cancelamento acima de 8%",
+            )
+
+    overview = quality["overview"]
+    if int(overview.get("execucoes_falha", 0) or 0) > 0:
+        add_alert(
+            "PIPELINE",
+            "CRITICO",
+            "Falha registrada no pipeline",
+            "Existem execuções com status de falha na auditoria do Data Warehouse.",
+            "Abrir a página de qualidade e revisar as últimas tarefas auditadas.",
+            metric_value=int(overview.get("execucoes_falha", 0) or 0),
+            threshold="Zero falhas de execução",
+        )
+    if int(overview.get("total_rejeicoes", 0) or 0) > 0:
+        add_alert(
+            "QUALIDADE",
+            "ALTO",
+            "Registros inválidos detectados",
+            "Há rejeições acumuladas na auditoria ou no controle de arquivos.",
+            "Consultar quarentena, arquivo de origem e regras de validação.",
+            metric_value=int(overview.get("total_rejeicoes", 0) or 0),
+            threshold="Zero registros inválidos",
+        )
+    for row in quality["coverage"]:
+        files = int(row["arquivos"] or 0)
+        if files < 3:
+            add_alert(
+                "QUALIDADE",
+                "ALTO",
+                f"Cobertura incompleta em {row['loja_nome']}",
+                f"A última data processada possui {files} arquivo(s) para a loja.",
+                "Verificar emissão dos turnos no PDV e reprocessar a data se necessário.",
+                str(row["loja_nome"]),
+                int(row["loja_id"]),
+                files,
+                "Três arquivos por loja no fechamento diário",
+            )
+
+    forecast_by_store = {}
+    for row in forecast_data["store_projection"]:
+        forecast_by_store.setdefault(row["loja_id"], row)
+    for model in ml_data["store_models"]:
+        first_ml = model["projection"][0] if model["projection"] else None
+        first_forecast = forecast_by_store.get(model["loja_id"])
+        if not first_ml or not first_forecast:
+            continue
+        managerial = float(first_forecast["forecast_ajustado"] or 0)
+        statistical = float(first_ml["previsao"] or 0)
+        divergence = abs(statistical - managerial) / managerial * 100 if managerial else 0
+        if divergence >= 15:
+            add_alert(
+                "FORECAST",
+                "MEDIO",
+                f"Forecast divergente em {model['loja_nome']}",
+                f"A previsão ML difere {divergence:.1f}% do forecast gerencial do próximo mês.",
+                "Comparar tendência histórica, forecast ajustado e intervalo da previsão ML.",
+                str(model["loja_nome"]),
+                int(model["loja_id"]),
+                divergence,
+                "Diferença máxima recomendada de 15%",
+            )
+
+    if not alerts:
+        add_alert(
+            "OPERACAO",
+            "INFO",
+            "Nenhum alerta crítico identificado",
+            (
+                "As principais regras de meta, qualidade, pipeline e previsão estão "
+                "dentro dos limites."
+            ),
+            "Manter acompanhamento diário e revisar a evolução das lojas.",
+        )
+
+    severity_order = {"CRITICO": 0, "ALTO": 1, "MEDIO": 2, "INFO": 3}
+    alerts.sort(key=lambda item: (severity_order[item["severity"]], item["type"], item["entity"]))
+    return {
+        "latest_competence": latest,
+        "days": days,
+        "summary": severity_counts(alerts),
+        "total": len(alerts),
+        "alerts": alerts,
+        "rules": [
+            "Meta abaixo de 80% gera alerta alto ou crítico.",
+            "Queda mensal de receita acima de 10% gera alerta de receita.",
+            "Margem bruta abaixo de 25% gera alerta de margem.",
+            "Cancelamento acima de 8% gera alerta operacional.",
+            "Falhas, rejeições e cobertura incompleta geram alertas de qualidade.",
+            (
+                "Diferença acima de 15% entre forecast gerencial e previsão ML "
+                "gera alerta de forecast."
+            ),
+        ],
     }

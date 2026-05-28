@@ -35,6 +35,11 @@ export function fetchStoreDetail(storeId, forecastMonths) {
   return request(`/stores/${storeId}?${query.toString()}`);
 }
 
+export function fetchAlerts(days) {
+  const query = new URLSearchParams({ days: String(days) });
+  return request(`/alerts?${query.toString()}`);
+}
+
 export function fetchForecast(months, adjustmentPct) {
   const query = new URLSearchParams({
     months: String(months),
