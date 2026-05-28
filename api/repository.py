@@ -140,6 +140,15 @@ def regression_prediction(
     }
 
 
+def approval_rate(read_records: int | float, invalid_records: int | float) -> float:
+    """Calcula a taxa de aprovação de registros lidos pelo pipeline."""
+    read = float(read_records or 0)
+    invalid = float(invalid_records or 0)
+    if read <= 0:
+        return 100.0
+    return round(max(0.0, (read - invalid) / read * 100), 2)
+
+
 def serialize(value: Any) -> Any:
     """Converte valores do banco em valores escalares serializáveis em JSON."""
     if isinstance(value, Decimal):
@@ -540,4 +549,173 @@ def ml_forecast(engine: Engine, months: int) -> dict[str, Any]:
             ),
             "interval": "Faixa estimada por 1,96 vezes o RMSE do modelo, ampliada pelo horizonte.",
         },
+    }
+
+
+def data_quality_status(engine: Engine, days: int) -> dict[str, Any]:
+    """Consolida auditoria, qualidade e rastreabilidade dos arquivos carregados."""
+    overview = fetch_one(
+        engine,
+        """
+        WITH arquivos AS (
+            SELECT
+                COUNT(*) total_arquivos,
+                COUNT(*) FILTER (WHERE status = 'PROCESSED') processados,
+                COUNT(*) FILTER (WHERE status = 'REPROCESSED') reprocessados,
+                COUNT(*) FILTER (WHERE status = 'FAILED') falhas_arquivo,
+                COUNT(*) FILTER (WHERE status = 'QUARANTINED') quarentenados,
+                COALESCE(SUM(registros_lidos), 0) registros_lidos,
+                COALESCE(SUM(registros_validos), 0) registros_validos,
+                COALESCE(SUM(registros_invalidos), 0) registros_invalidos,
+                MAX(updated_at) ultima_atualizacao_arquivo,
+                MAX(data_referencia) ultima_data_referencia
+            FROM processed_files
+        ), auditoria AS (
+            SELECT
+                COUNT(*) total_execucoes,
+                COUNT(*) FILTER (WHERE status = 'SUCCESS') execucoes_sucesso,
+                COUNT(*) FILTER (WHERE status = 'FAILED') execucoes_falha,
+                COALESCE(SUM(registros_lidos), 0) registros_auditados,
+                COALESCE(SUM(registros_invalidos), 0) rejeicoes_auditadas,
+                COALESCE(AVG(duracao_segundos), 0) duracao_media_segundos,
+                MAX(created_at) ultima_execucao
+            FROM pipeline_audit_log
+        )
+        SELECT *
+        FROM arquivos CROSS JOIN auditoria
+        """,
+    )
+    daily_quality = fetch_all(
+        engine,
+        """
+        SELECT
+            data_referencia,
+            COUNT(*) arquivos,
+            COUNT(DISTINCT loja_id) lojas,
+            COUNT(*) FILTER (WHERE status = 'PROCESSED') processados,
+            COUNT(*) FILTER (WHERE status = 'REPROCESSED') reprocessados,
+            COUNT(*) FILTER (WHERE status = 'FAILED') falhas,
+            COUNT(*) FILTER (WHERE status = 'QUARANTINED') quarentenados,
+            COALESCE(SUM(registros_lidos), 0) registros_lidos,
+            COALESCE(SUM(registros_validos), 0) registros_validos,
+            COALESCE(SUM(registros_invalidos), 0) registros_invalidos,
+            MAX(updated_at) atualizado_em
+        FROM processed_files
+        WHERE data_referencia >= CURRENT_DATE - ((:days - 1) * INTERVAL '1 day')
+        GROUP BY data_referencia
+        ORDER BY data_referencia DESC
+        """,
+        {"days": days},
+    )
+    task_quality = fetch_all(
+        engine,
+        """
+        SELECT
+            task_id,
+            status,
+            COUNT(*) execucoes,
+            COALESCE(SUM(registros_lidos), 0) registros_lidos,
+            COALESCE(SUM(registros_validos), 0) registros_validos,
+            COALESCE(SUM(registros_invalidos), 0) registros_invalidos,
+            COALESCE(SUM(registros_inseridos), 0) registros_inseridos,
+            COALESCE(SUM(registros_ignorados), 0) registros_ignorados,
+            COALESCE(AVG(duracao_segundos), 0) duracao_media_segundos,
+            MAX(created_at) ultima_execucao
+        FROM pipeline_audit_log
+        WHERE data_referencia >= CURRENT_DATE - ((:days - 1) * INTERVAL '1 day')
+        GROUP BY task_id, status
+        ORDER BY ultima_execucao DESC, task_id
+        """,
+        {"days": days},
+    )
+    recent_files = fetch_all(
+        engine,
+        """
+        SELECT
+            p.file_id, p.file_path, p.checksum, p.data_referencia, p.loja_id,
+            COALESCE(l.loja_nome, 'Loja ' || p.loja_id::TEXT) loja_nome,
+            p.camada_destino, p.status, p.registros_lidos, p.registros_validos,
+            p.registros_invalidos, p.pipeline_version, p.processed_at, p.updated_at
+        FROM processed_files p
+        LEFT JOIN dim_loja l ON l.loja_id = p.loja_id
+        ORDER BY p.updated_at DESC, p.file_id DESC
+        LIMIT 30
+        """,
+    )
+    recent_runs = fetch_all(
+        engine,
+        """
+        SELECT
+            audit_id, dag_id, run_id, task_id, data_referencia, status,
+            registros_lidos, registros_validos, registros_invalidos,
+            registros_inseridos, registros_ignorados, duracao_segundos,
+            mensagem, created_at
+        FROM pipeline_audit_log
+        ORDER BY created_at DESC, audit_id DESC
+        LIMIT 25
+        """,
+    )
+    coverage = fetch_all(
+        engine,
+        """
+        WITH ultima_data AS (
+            SELECT MAX(data_referencia) data_referencia
+            FROM processed_files
+        )
+        SELECT
+            l.loja_id, l.loja_nome,
+            COALESCE(COUNT(p.file_id), 0) arquivos,
+            COALESCE(SUM(p.registros_lidos), 0) registros_lidos,
+            COALESCE(SUM(p.registros_validos), 0) registros_validos,
+            COALESCE(SUM(p.registros_invalidos), 0) registros_invalidos,
+            MAX(p.updated_at) atualizado_em
+        FROM dim_loja l
+        CROSS JOIN ultima_data u
+        LEFT JOIN processed_files p
+          ON p.loja_id = l.loja_id AND p.data_referencia = u.data_referencia
+        WHERE l.ativa = TRUE
+        GROUP BY l.loja_id, l.loja_nome
+        ORDER BY l.loja_id
+        """,
+    )
+
+    for row in daily_quality:
+        row["taxa_aprovacao"] = approval_rate(row["registros_lidos"], row["registros_invalidos"])
+    for row in task_quality:
+        row["taxa_aprovacao"] = approval_rate(row["registros_lidos"], row["registros_invalidos"])
+    for row in coverage:
+        row["taxa_aprovacao"] = approval_rate(row["registros_lidos"], row["registros_invalidos"])
+
+    overview["taxa_aprovacao"] = approval_rate(
+        overview.get("registros_lidos", 0),
+        overview.get("registros_invalidos", 0),
+    )
+    overview["taxa_sucesso_execucoes"] = approval_rate(
+        overview.get("total_execucoes", 0),
+        overview.get("execucoes_falha", 0),
+    )
+    overview["total_rejeicoes"] = max(
+        int(overview.get("registros_invalidos", 0) or 0),
+        int(overview.get("rejeicoes_auditadas", 0) or 0),
+    )
+    alerts = []
+    if overview.get("falhas_arquivo", 0) or overview.get("execucoes_falha", 0):
+        alerts.append("Existem falhas registradas na auditoria ou no controle de arquivos.")
+    if overview["total_rejeicoes"]:
+        alerts.append("Há registros inválidos acumulados para investigar na quarentena.")
+    latest_coverage = [row for row in coverage if int(row["arquivos"] or 0) < 3]
+    if latest_coverage:
+        alerts.append("A última data processada possui lojas com menos de três turnos carregados.")
+    if not alerts:
+        alerts.append("Nenhuma anomalia operacional detectada no período analisado.")
+
+    return {
+        "days": days,
+        "overview": overview,
+        "daily_quality": daily_quality,
+        "task_quality": task_quality,
+        "recent_files": recent_files,
+        "recent_runs": recent_runs,
+        "coverage": coverage,
+        "alerts": alerts,
     }

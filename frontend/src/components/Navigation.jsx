@@ -13,6 +13,9 @@ export function Navigation({ active }) {
       <a className={active === "ml" ? "active" : ""} href="/previsao-ml">
         Previsão ML
       </a>
+      <a className={active === "quality" ? "active" : ""} href="/qualidade">
+        Qualidade
+      </a>
       <a className={active === "pdv" ? "active" : ""} href="/pdv">
         Operação PDV
       </a>

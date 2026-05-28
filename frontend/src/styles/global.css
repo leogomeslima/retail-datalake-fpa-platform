@@ -387,6 +387,10 @@ td {
   color: var(--red);
 }
 
+.attention-text {
+  color: var(--amber);
+}
+
 .fpa-list {
   display: grid;
   gap: 12px;
@@ -977,6 +981,127 @@ td {
   color: var(--navy);
 }
 
+.quality-filters {
+  margin-bottom: 20px;
+}
+
+.quality-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.quality-kpis article {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.quality-kpis article.highlight {
+  background: var(--green);
+}
+
+.quality-kpis span,
+.quality-kpis strong,
+.quality-kpis small {
+  display: block;
+}
+
+.quality-kpis span {
+  margin-bottom: 17px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.quality-kpis strong {
+  margin-bottom: 8px;
+  color: var(--navy);
+  font-size: 25px;
+}
+
+.quality-kpis small {
+  color: var(--ink-soft);
+}
+
+.quality-kpis .highlight span,
+.quality-kpis .highlight strong,
+.quality-kpis .highlight small {
+  color: white;
+}
+
+.quality-alerts {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.quality-alerts article {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 15px;
+  border: 1px solid #cfe5dd;
+  border-radius: 12px;
+  background: #f4fbf8;
+}
+
+.quality-alerts span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.quality-alerts p {
+  margin: 0;
+  color: var(--navy);
+  font-size: 13px;
+}
+
+.quality-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 0.85fr;
+  gap: 16px;
+}
+
+.quality-daily-panel {
+  grid-column: 1 / -1;
+}
+
+.coverage-list {
+  display: grid;
+  gap: 11px;
+}
+
+.coverage-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+
+.coverage-row strong,
+.coverage-row small {
+  display: block;
+}
+
+.coverage-row small,
+.coverage-row span {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+.coverage-row b {
+  font-size: 14px;
+}
+
 @media (max-width: 1080px) {
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1003,6 +1128,14 @@ td {
   }
 
   .forecast-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quality-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quality-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1042,6 +1175,10 @@ td {
   }
 
   .forecast-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .quality-kpis {
     grid-template-columns: 1fr;
   }
 

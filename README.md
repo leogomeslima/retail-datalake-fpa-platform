@@ -336,6 +336,7 @@ docker compose --env-file .env.example up -d --build api frontend
 - Evolução de lojas: `http://localhost:5173/evolucao`
 - Ajuste de forecast: `http://localhost:5173/forecast`
 - Previsão ML: `http://localhost:5173/previsao-ml`
+- Qualidade dos dados: `http://localhost:5173/qualidade`
 - API: `http://localhost:8000/api/health`
 - Swagger: `http://localhost:8000/docs`
 
@@ -378,6 +379,13 @@ separada do ajuste gerencial. Ela treina uma regressão linear simples sobre a r
 mensal realizada, mostra tendência, RMSE, ajuste R², backtest do último mês e uma faixa
 estimada para os próximos meses. Junho aparece nessa tela como previsão futura, não como
 movimento realizado.
+
+### Qualidade dos Dados
+
+A página `http://localhost:5173/qualidade` monitora a saúde do fluxo de arquivos. Ela
+consolida `processed_files` e `pipeline_audit_log` para mostrar taxa de aprovação,
+arquivos processados, reprocessamentos, rejeições, duração média das tarefas, cobertura
+por loja na última data e rastreabilidade dos arquivos mais recentes.
 
 ## Documentação
 

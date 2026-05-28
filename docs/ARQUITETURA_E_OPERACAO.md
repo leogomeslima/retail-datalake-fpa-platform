@@ -390,6 +390,15 @@ histórico mensal realizado. O modelo usa regressão linear simples, exibe tend�
 RMSE, R², backtest do último mês e uma faixa estimada para os próximos períodos. Essa visão
 é separada do ajuste gerencial para diferenciar previsão estatística de cenário manual.
 
+### Qualidade dos Dados
+
+Rota: `http://localhost:5173/qualidade`
+
+A página consome `GET /api/data-quality` e centraliza a observabilidade do fluxo de
+arquivos. A API cruza `processed_files` e `pipeline_audit_log` para apresentar taxa de
+aprovação, rejeições, reprocessamentos, cobertura por loja, últimas tarefas executadas e
+rastreabilidade dos arquivos carregados no Data Warehouse.
+
 ## Monitoramento e Auditoria
 
 | Evidência | Local |

@@ -2,7 +2,13 @@
 
 import pytest
 
-from api.repository import forecast_trend, linear_regression, next_competence, regression_prediction
+from api.repository import (
+    approval_rate,
+    forecast_trend,
+    linear_regression,
+    next_competence,
+    regression_prediction,
+)
 
 
 def test_next_competence_advances_across_year_boundary() -> None:
@@ -55,3 +61,8 @@ def test_regression_prediction_returns_backtest_and_interval() -> None:
     assert result["projection"][1]["competencia"] == "2026-06"
     assert result["backtest"]["competencia"] == "2026-04"
     assert result["model"]["observacoes_treino"] == 4
+
+
+def test_approval_rate_calculates_valid_record_percentage() -> None:
+    assert approval_rate(100, 3) == 97.0
+    assert approval_rate(0, 0) == 100.0

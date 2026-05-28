@@ -11,6 +11,7 @@ from api.pdv import router as pdv_router
 from api.repository import (
     competences,
     dashboard,
+    data_quality_status,
     evolution,
     forecast,
     latest_competence,
@@ -72,6 +73,15 @@ def get_evolution() -> dict[str, object]:
     return {
         "updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "data": evolution(engine),
+    }
+
+
+@app.get("/api/data-quality")
+def get_data_quality(days: int = Query(default=14, ge=1, le=90)) -> dict[str, object]:
+    """Retorna qualidade, auditoria e rastreabilidade do pipeline."""
+    return {
+        "updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "data": data_quality_status(engine, days),
     }
 
 

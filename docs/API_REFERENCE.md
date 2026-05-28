@@ -180,6 +180,55 @@ O modelo usa a média das últimas variações mensais realizadas de cada loja, 
 entre `-15%` e `15%`, e aplica o ajuste solicitado sobre a previsão base. Comparações
 orçamentárias são retornadas apenas para competências que possuem orçamento provisionado.
 
+### `GET /api/data-quality`
+
+Retorna qualidade, auditoria e rastreabilidade do pipeline a partir das tabelas
+`processed_files` e `pipeline_audit_log`.
+
+Parâmetros:
+
+| Parâmetro | Tipo | Regra |
+| --- | --- | --- |
+| `days` | inteiro | Janela operacional entre `1` e `90`; padrão `14` |
+
+Resposta `200` para `/api/data-quality?days=14`:
+
+```json
+{
+  "updated_at": "2026-05-28T03:10:00+00:00",
+  "data": {
+    "days": 14,
+    "overview": {
+      "total_arquivos": 2205,
+      "processados": 2205,
+      "reprocessados": 0,
+      "registros_lidos": 31123,
+      "registros_validos": 31123,
+      "total_rejeicoes": 0,
+      "taxa_aprovacao": 100.0,
+      "taxa_sucesso_execucoes": 100.0,
+      "ultima_data_referencia": "2026-05-27"
+    },
+    "daily_quality": [
+      {
+        "data_referencia": "2026-05-27",
+        "arquivos": 15,
+        "lojas": 5,
+        "registros_lidos": 225,
+        "registros_validos": 225,
+        "registros_invalidos": 0,
+        "taxa_aprovacao": 100.0
+      }
+    ],
+    "task_quality": [],
+    "recent_files": [],
+    "recent_runs": [],
+    "coverage": [],
+    "alerts": ["Nenhuma anomalia operacional detectada no período analisado."]
+  }
+}
+```
+
 ### `GET /api/ml-forecast`
 
 Retorna uma previsão estatística mensal baseada no histórico realizado. A API usa uma

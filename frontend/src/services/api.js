@@ -25,6 +25,11 @@ export function fetchEvolution() {
   return request("/evolution");
 }
 
+export function fetchDataQuality(days) {
+  const query = new URLSearchParams({ days: String(days) });
+  return request(`/data-quality?${query.toString()}`);
+}
+
 export function fetchForecast(months, adjustmentPct) {
   const query = new URLSearchParams({
     months: String(months),
