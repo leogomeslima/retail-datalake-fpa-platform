@@ -33,6 +33,11 @@ export function fetchForecast(months, adjustmentPct) {
   return request(`/forecast?${query.toString()}`);
 }
 
+export function fetchMlForecast(months) {
+  const query = new URLSearchParams({ months: String(months) });
+  return request(`/ml-forecast?${query.toString()}`);
+}
+
 export function fetchPdvConfig() {
   return request("/pdv/config");
 }

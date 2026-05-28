@@ -381,6 +381,15 @@ A previsão parte do forecast de fechamento da última competência observada e 
 tendência recente de receita por loja, com limite de `-15%` a `15%` ao mês para reduzir
 distorções. Meses sem orçamento provisionado são projetados, mas não geram desvio de meta.
 
+### Previsão ML
+
+Rota: `http://localhost:5173/previsao-ml`
+
+A página consome `GET /api/ml-forecast` e apresenta uma previsão estatística baseada no
+histórico mensal realizado. O modelo usa regressão linear simples, exibe tendência mensal,
+RMSE, R², backtest do último mês e uma faixa estimada para os próximos períodos. Essa visão
+é separada do ajuste gerencial para diferenciar previsão estatística de cenário manual.
+
 ## Monitoramento e Auditoria
 
 | Evidência | Local |

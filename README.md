@@ -335,6 +335,7 @@ docker compose --env-file .env.example up -d --build api frontend
 - Painel de Indicadores: `http://localhost:5173`
 - Evolução de lojas: `http://localhost:5173/evolucao`
 - Ajuste de forecast: `http://localhost:5173/forecast`
+- Previsão ML: `http://localhost:5173/previsao-ml`
 - API: `http://localhost:8000/api/health`
 - Swagger: `http://localhost:8000/docs`
 
@@ -369,6 +370,14 @@ partir do realizado e do forecast de fechamento vigente. O cenário aplica a ten
 recente por loja, limitada entre `-15%` e `15%` ao mês, e permite um ajuste gerencial
 entre `-30%` e `30%`. A tela confronta previsão e orçamento quando o orçamento da
 competência futura já estiver provisionado, além de estimar EBITDA com a margem recente.
+
+### Previsão ML
+
+A página `http://localhost:5173/previsao-ml` oferece uma visão preditiva estatística
+separada do ajuste gerencial. Ela treina uma regressão linear simples sobre a receita
+mensal realizada, mostra tendência, RMSE, ajuste R², backtest do último mês e uma faixa
+estimada para os próximos meses. Junho aparece nessa tela como previsão futura, não como
+movimento realizado.
 
 ## Documentação
 

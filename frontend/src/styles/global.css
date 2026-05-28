@@ -958,6 +958,13 @@ td {
   font-weight: 650;
 }
 
+.model-footnote {
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .forecast-store-header {
   align-items: center;
 }

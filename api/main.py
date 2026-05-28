@@ -8,7 +8,14 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.pdv import router as pdv_router
-from api.repository import competences, dashboard, evolution, forecast, latest_competence
+from api.repository import (
+    competences,
+    dashboard,
+    evolution,
+    forecast,
+    latest_competence,
+    ml_forecast,
+)
 from scripts.load import create_dw_engine
 
 app = FastAPI(title="RetailCo FP&A API", version="1.0.0")
@@ -77,4 +84,17 @@ def get_forecast(
     return {
         "updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "data": forecast(engine, months, adjustment_pct),
+    }
+
+
+@app.get("/api/ml-forecast")
+def get_ml_forecast(months: int = Query(default=6, ge=1, le=12)) -> dict[str, object]:
+    """Retorna previsão estatística mensal baseada no histórico realizado."""
+    try:
+        forecast_data = ml_forecast(engine, months)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return {
+        "updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "data": forecast_data,
     }

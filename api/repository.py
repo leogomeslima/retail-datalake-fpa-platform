@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -38,6 +39,105 @@ def forecast_trend(history: list[dict[str, Any]], latest_competence_value: str) 
         return 0.0
     average = sum(recent_changes) / len(recent_changes)
     return max(-0.15, min(0.15, average))
+
+
+def linear_regression(values: list[float]) -> dict[str, float]:
+    """Ajusta uma regressão linear simples para uma série temporal mensal."""
+    if not values:
+        raise ValueError("A série de treino precisa possuir ao menos uma observação.")
+    if len(values) == 1:
+        return {
+            "intercept": values[0],
+            "slope": 0.0,
+            "rmse": 0.0,
+            "r2": 1.0,
+        }
+
+    positions = list(range(len(values)))
+    x_average = sum(positions) / len(positions)
+    y_average = sum(values) / len(values)
+    denominator = sum((position - x_average) ** 2 for position in positions)
+    slope = (
+        sum(
+            (position - x_average) * (value - y_average)
+            for position, value in zip(positions, values, strict=True)
+        )
+        / denominator
+        if denominator
+        else 0.0
+    )
+    intercept = y_average - slope * x_average
+    residuals = [
+        value - (intercept + slope * position)
+        for position, value in zip(positions, values, strict=True)
+    ]
+    rmse = math.sqrt(sum(residual**2 for residual in residuals) / len(residuals))
+    total_variation = sum((value - y_average) ** 2 for value in values)
+    residual_variation = sum(residual**2 for residual in residuals)
+    r2 = 1 - residual_variation / total_variation if total_variation else 1.0
+    return {
+        "intercept": intercept,
+        "slope": slope,
+        "rmse": rmse,
+        "r2": max(0.0, min(1.0, r2)),
+    }
+
+
+def regression_prediction(
+    history: list[dict[str, Any]],
+    value_key: str,
+    months: int,
+    latest_competence_value: str,
+) -> dict[str, Any]:
+    """Gera previsão mensal por regressão linear com backtest simples."""
+    values = [float(row[value_key] or 0) for row in history]
+    model = linear_regression(values)
+    last_value = values[-1] if values else 0.0
+    trend_pct = model["slope"] / last_value * 100 if last_value else 0.0
+
+    backtest = None
+    if len(values) >= 3:
+        train = values[:-1]
+        backtest_model = linear_regression(train)
+        predicted = max(0.0, backtest_model["intercept"] + backtest_model["slope"] * len(train))
+        actual = values[-1]
+        error = predicted - actual
+        absolute_pct = abs(error) / actual * 100 if actual else None
+        backtest = {
+            "competencia": history[-1]["competencia"],
+            "realizado": round(actual, 2),
+            "previsto": round(predicted, 2),
+            "erro_absoluto": round(error, 2),
+            "erro_percentual_abs": round(absolute_pct, 2) if absolute_pct is not None else None,
+        }
+
+    projection = []
+    for position in range(1, months + 1):
+        model_position = len(values) - 1 + position
+        forecast_value = max(0.0, model["intercept"] + model["slope"] * model_position)
+        error_margin = 1.96 * model["rmse"] * math.sqrt(1 + position / max(len(values), 1))
+        projection.append(
+            {
+                "competencia": next_competence(latest_competence_value, position),
+                "previsao": round(forecast_value, 2),
+                "limite_inferior": round(max(0.0, forecast_value - error_margin), 2),
+                "limite_superior": round(forecast_value + error_margin, 2),
+            }
+        )
+
+    return {
+        "model": {
+            "tipo": "Regressão linear simples",
+            "intercepto": round(model["intercept"], 2),
+            "coeficiente_mensal": round(model["slope"], 2),
+            "tendencia_mensal_pct": round(trend_pct, 2),
+            "rmse": round(model["rmse"], 2),
+            "r2": round(model["r2"], 4),
+            "observacoes_treino": len(values),
+        },
+        "backtest": backtest,
+        "projection": projection,
+    }
 
 
 def serialize(value: Any) -> Any:
@@ -377,5 +477,67 @@ def forecast(engine: Engine, months: int, adjustment_pct: float) -> dict[str, An
             ),
             "trend": "Média das últimas variações mensais realizadas, limitada entre -15% e 15%.",
             "adjustment": "Ajuste gerencial aplicado uniformemente sobre a projeção base.",
+        },
+    }
+
+
+def ml_forecast(engine: Engine, months: int) -> dict[str, Any]:
+    """Projeta receita futura com regressão linear simples sobre o realizado mensal."""
+    source = evolution(engine)
+    if not source["network"]:
+        raise ValueError("Não há histórico realizado suficiente para previsão.")
+
+    latest = source["network"][-1]["competencia"]
+    network_history = [
+        {"competencia": row["competencia"], "receita": float(row["receita_liquida"] or 0)}
+        for row in source["network"]
+    ]
+    network_result = regression_prediction(network_history, "receita", months, latest)
+
+    store_results = []
+    for store in source["stores"]:
+        history = [
+            {
+                "competencia": row["competencia"],
+                "receita": float(row["receita"] or 0),
+            }
+            for row in source["store_series"]
+            if row["loja_id"] == store["loja_id"]
+        ]
+        if not history:
+            continue
+        prediction = regression_prediction(history, "receita", months, latest)
+        store_results.append(
+            {
+                "loja_id": store["loja_id"],
+                "loja_nome": store["loja_nome"],
+                "history": history,
+                "model": prediction["model"],
+                "backtest": prediction["backtest"],
+                "projection": prediction["projection"],
+            }
+        )
+
+    return {
+        "latest_competence": latest,
+        "months": months,
+        "history": network_history,
+        "network": network_result,
+        "stores": source["stores"],
+        "store_models": store_results,
+        "methodology": {
+            "objective": (
+                "Estimar a receita futura a partir do comportamento mensal realizado, "
+                "sem considerar ajustes manuais."
+            ),
+            "model": (
+                "Regressão linear simples usando a posição temporal do mês como variável "
+                "explicativa e a receita realizada como alvo."
+            ),
+            "validation": (
+                "Backtest holdout: o último mês realizado é previsto por um modelo treinado "
+                "apenas com os meses anteriores."
+            ),
+            "interval": "Faixa estimada por 1,96 vezes o RMSE do modelo, ampliada pelo horizonte.",
         },
     }

@@ -180,6 +180,52 @@ O modelo usa a média das últimas variações mensais realizadas de cada loja, 
 entre `-15%` e `15%`, e aplica o ajuste solicitado sobre a previsão base. Comparações
 orçamentárias são retornadas apenas para competências que possuem orçamento provisionado.
 
+### `GET /api/ml-forecast`
+
+Retorna uma previsão estatística mensal baseada no histórico realizado. A API usa uma
+regressão linear simples por posição temporal, calcula backtest do último mês disponível
+e devolve uma faixa estimada por erro do modelo.
+
+Parâmetros:
+
+| Parâmetro | Tipo | Regra |
+| --- | --- | --- |
+| `months` | inteiro | Horizonte futuro entre `1` e `12`; padrão `6` |
+
+Resposta `200` para `/api/ml-forecast?months=3`:
+
+```json
+{
+  "updated_at": "2026-05-27T23:28:24-03:00",
+  "data": {
+    "latest_competence": "2026-05",
+    "months": 3,
+    "network": {
+      "model": {
+        "tipo": "Regressão linear simples",
+        "tendencia_mensal_pct": 0.42,
+        "rmse": 642847.78,
+        "r2": 0.018,
+        "observacoes_treino": 5
+      },
+      "backtest": {
+        "competencia": "2026-05",
+        "erro_percentual_abs": 8.84
+      },
+      "projection": [
+        {
+          "competencia": "2026-06",
+          "previsao": 14118156.89,
+          "limite_inferior": 12737916.15,
+          "limite_superior": 15498397.62
+        }
+      ]
+    },
+    "store_models": []
+  }
+}
+```
+
 ## Endpoints do PDV
 
 ### `GET /api/pdv/config`
