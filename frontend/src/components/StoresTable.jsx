@@ -24,7 +24,9 @@ export function StoresTable({ stores }) {
             {stores.map((store) => (
               <tr key={store.loja_id}>
                 <td>
-                  <b>#{store.ranking}</b> {store.loja_nome}
+                  <a className="store-link" href={`/lojas/${store.loja_id}`}>
+                    <b>#{store.ranking}</b> {store.loja_nome}
+                  </a>
                 </td>
                 <td>{formatCurrency(store.faturamento)}</td>
                 <td>{formatPercent(store.market_share_pct)}</td>

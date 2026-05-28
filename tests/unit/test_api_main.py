@@ -35,3 +35,20 @@ def test_dashboard_uses_latest_loaded_competence_when_filter_is_absent(
     result = main.get_dashboard(None)
 
     assert result["data"] == {"competencia": "2026-06"}
+
+
+def test_store_detail_returns_404_when_store_is_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Converte ausência de loja em resposta HTTP clara para o frontend."""
+
+    def raise_missing_store(
+        engine: object, store_id: int, forecast_months: int
+    ) -> dict[str, object]:
+        raise ValueError(f"Loja {store_id} não encontrada.")
+
+    monkeypatch.setattr(main, "store_detail", raise_missing_store)
+
+    with pytest.raises(HTTPException) as raised:
+        main.get_store_detail(99, 6)
+
+    assert raised.value.status_code == 404
+    assert raised.value.detail == "Loja 99 não encontrada."

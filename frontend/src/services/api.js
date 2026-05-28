@@ -30,6 +30,11 @@ export function fetchDataQuality(days) {
   return request(`/data-quality?${query.toString()}`);
 }
 
+export function fetchStoreDetail(storeId, forecastMonths) {
+  const query = new URLSearchParams({ forecast_months: String(forecastMonths) });
+  return request(`/stores/${storeId}?${query.toString()}`);
+}
+
 export function fetchForecast(months, adjustmentPct) {
   const query = new URLSearchParams({
     months: String(months),

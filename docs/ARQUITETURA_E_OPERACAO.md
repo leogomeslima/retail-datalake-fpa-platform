@@ -381,6 +381,15 @@ A previsão parte do forecast de fechamento da última competência observada e 
 tendência recente de receita por loja, com limite de `-15%` a `15%` ao mês para reduzir
 distorções. Meses sem orçamento provisionado são projetados, mas não geram desvio de meta.
 
+### Drill-down por Loja
+
+Rota: `http://localhost:5173/lojas/1`
+
+A página consome `GET /api/stores/{store_id}` e concentra a análise de uma unidade. O
+backend combina histórico mensal, indicadores FP&A, DRE da loja, produtos, canais,
+status transacional, qualidade de arquivos em `processed_files`, forecast gerencial e
+previsão estatística para permitir sair do ranking consolidado e investigar a loja em detalhe.
+
 ### Previsão ML
 
 Rota: `http://localhost:5173/previsao-ml`

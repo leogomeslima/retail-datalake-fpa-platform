@@ -7,6 +7,9 @@ export function Navigation({ active }) {
       <a className={active === "evolution" ? "active" : ""} href="/evolucao">
         Evolução de Lojas
       </a>
+      <a className={active === "store" ? "active" : ""} href="/lojas/1">
+        Detalhe da Loja
+      </a>
       <a className={active === "forecast" ? "active" : ""} href="/forecast">
         Ajuste de Forecast
       </a>

@@ -229,6 +229,52 @@ Resposta `200` para `/api/data-quality?days=14`:
 }
 ```
 
+### `GET /api/stores/{store_id}`
+
+Retorna o drill-down de uma loja com desempenho, produtos, canais, qualidade, rastreabilidade
+e previsões futuras.
+
+Parâmetros:
+
+| Parâmetro | Tipo | Regra |
+| --- | --- | --- |
+| `store_id` | inteiro | Identificador da loja na rota |
+| `forecast_months` | inteiro | Horizonte futuro entre `1` e `12`; padrão `6` |
+
+Resposta `200` para `/api/stores/1?forecast_months=6`:
+
+```json
+{
+  "updated_at": "2026-05-28T10:20:00+00:00",
+  "data": {
+    "latest_competence": "2026-05",
+    "forecast_months": 6,
+    "store": {
+      "loja_id": 1,
+      "loja_nome": "Loja Centro",
+      "cidade": "São Paulo",
+      "estado": "SP"
+    },
+    "overview": {
+      "receita_liquida": 3200000.0,
+      "ticket_medio": 2700.0,
+      "market_share_pct": 25.4,
+      "meta_atingida_pct": 380.0,
+      "forecast_mes": 3300000.0
+    },
+    "history": [],
+    "products": [],
+    "channels": [],
+    "quality": [],
+    "recent_files": [],
+    "forecast_projection": [],
+    "ml_prediction": {}
+  }
+}
+```
+
+Resposta `404` quando a loja não existe ou não possui histórico realizado.
+
 ### `GET /api/ml-forecast`
 
 Retorna uma previsão estatística mensal baseada no histórico realizado. A API usa uma

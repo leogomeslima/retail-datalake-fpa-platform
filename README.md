@@ -334,6 +334,7 @@ docker compose --env-file .env.example up -d --build api frontend
 
 - Painel de Indicadores: `http://localhost:5173`
 - Evolução de lojas: `http://localhost:5173/evolucao`
+- Detalhe da loja: `http://localhost:5173/lojas/1`
 - Ajuste de forecast: `http://localhost:5173/forecast`
 - Previsão ML: `http://localhost:5173/previsao-ml`
 - Qualidade dos dados: `http://localhost:5173/qualidade`
@@ -363,6 +364,14 @@ A página `http://localhost:5173/evolucao` acompanha a trajetória mensal de cad
 em gráficos de linha. É possível comparar receita líquida, ticket médio, margem bruta,
 meta atingida e participação na receita, além de consultar forecast da loja, EBITDA e cancelamento
 consolidados da rede.
+
+### Drill-down por Loja
+
+A página `http://localhost:5173/lojas/1` detalha uma unidade específica e pode ser aberta
+diretamente pelo ranking de lojas do dashboard. Ela reúne histórico mensal, receita,
+ticket médio, meta, EBITDA, produtos líderes, canais de venda, status operacional,
+qualidade dos arquivos, rastreabilidade dos últimos arquivos e previsão futura combinando
+forecast gerencial com previsão estatística.
 
 ### Ajuste de Forecast
 

@@ -16,6 +16,7 @@ from api.repository import (
     forecast,
     latest_competence,
     ml_forecast,
+    store_detail,
 )
 from scripts.load import create_dw_engine
 
@@ -82,6 +83,22 @@ def get_data_quality(days: int = Query(default=14, ge=1, le=90)) -> dict[str, ob
     return {
         "updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "data": data_quality_status(engine, days),
+    }
+
+
+@app.get("/api/stores/{store_id}")
+def get_store_detail(
+    store_id: int,
+    forecast_months: int = Query(default=6, ge=1, le=12),
+) -> dict[str, object]:
+    """Retorna visão detalhada de desempenho, qualidade e previsão de uma loja."""
+    try:
+        data = store_detail(engine, store_id, forecast_months)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    return {
+        "updated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "data": data,
     }
 
 

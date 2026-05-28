@@ -719,3 +719,175 @@ def data_quality_status(engine: Engine, days: int) -> dict[str, Any]:
         "coverage": coverage,
         "alerts": alerts,
     }
+
+
+def store_detail(engine: Engine, store_id: int, forecast_months: int) -> dict[str, Any]:
+    """Monta uma visão analítica completa de uma loja específica."""
+    store = fetch_one(
+        engine,
+        """
+        SELECT loja_id, loja_nome, cidade, estado, regiao, data_abertura, tier, ativa
+        FROM dim_loja
+        WHERE loja_id = :store_id
+        """,
+        {"store_id": store_id},
+    )
+    if not store:
+        raise ValueError(f"Loja {store_id} não encontrada.")
+
+    source = evolution(engine)
+    latest = (
+        source["network"][-1]["competencia"] if source["network"] else latest_competence(engine)
+    )
+    if latest is None:
+        raise ValueError("Não há histórico realizado para detalhar a loja.")
+
+    year, month = (int(part) for part in latest.split("-"))
+    params = {"store_id": store_id, "ano": year, "mes": month}
+    history = [row for row in source["store_series"] if row["loja_id"] == store_id]
+    if not history:
+        raise ValueError(f"Loja {store_id} não possui movimento realizado.")
+
+    overview = fetch_one(
+        engine,
+        """
+        WITH vendas AS (
+            SELECT
+                COALESCE(SUM(valor_liquido) FILTER (WHERE status = 'CONCLUIDA'), 0) receita_liquida,
+                COALESCE(SUM(valor_bruto) FILTER (WHERE status = 'CONCLUIDA'), 0) receita_bruta,
+                COALESCE(SUM(margem_bruta) FILTER (WHERE status = 'CONCLUIDA'), 0) margem_bruta,
+                COUNT(DISTINCT id_venda) FILTER (WHERE status = 'CONCLUIDA') pedidos,
+                COUNT(*) FILTER (WHERE status = 'CANCELADA') canceladas,
+                COUNT(*) FILTER (WHERE status = 'PENDENTE') pendentes,
+                COALESCE(
+                    SUM(valor_liquido) FILTER (WHERE status = 'CONCLUIDA') /
+                    NULLIF(COUNT(DISTINCT id_venda) FILTER (WHERE status = 'CONCLUIDA'), 0), 0
+                ) ticket_medio
+            FROM fato_vendas
+            WHERE loja_id = :store_id AND ano = :ano AND mes = :mes
+        )
+        SELECT
+            v.*, r.ranking, r.market_share_pct, r.crescimento_mom,
+            m.receita_orcada, m.variacao_absoluta, m.variacao_pct, m.status_semaforo,
+            f.meta_atingida_pct, f.forecast_mes, f.run_rate_anual,
+            d.ebitda, d.margem_ebitda_pct
+        FROM vendas v
+        LEFT JOIN vw_faturamento_por_loja r
+          ON r.loja_id = :store_id AND r.ano = :ano AND r.mes = :mes
+        LEFT JOIN vw_meta_vs_realizado m
+          ON m.loja_id = :store_id AND m.ano = :ano AND m.mes = :mes
+        LEFT JOIN vw_indicadores_fpa f
+          ON f.loja_id = :store_id AND f.ano = :ano AND f.mes = :mes
+        LEFT JOIN fato_dre d
+          ON d.loja_id = :store_id AND d.ano = :ano AND d.mes = :mes
+        """,
+        params,
+    )
+    products = fetch_all(
+        engine,
+        """
+        SELECT
+            p.produto_id, p.produto_nome, p.categoria,
+            SUM(v.valor_liquido) receita,
+            SUM(v.quantidade) volume,
+            SUM(v.margem_bruta) margem_bruta,
+            SUM(v.margem_bruta) / NULLIF(SUM(v.valor_liquido), 0) * 100 margem_pct
+        FROM fato_vendas v
+        JOIN dim_produto p ON p.produto_sk = v.produto_sk
+        WHERE v.loja_id = :store_id AND v.ano = :ano AND v.mes = :mes
+          AND v.status = 'CONCLUIDA'
+        GROUP BY p.produto_id, p.produto_nome, p.categoria
+        ORDER BY receita DESC
+        LIMIT 10
+        """,
+        params,
+    )
+    channels = fetch_all(
+        engine,
+        """
+        SELECT
+            canal_venda, forma_pagamento,
+            COUNT(DISTINCT id_venda) pedidos,
+            SUM(valor_liquido) receita,
+            SUM(valor_liquido) / NULLIF(COUNT(DISTINCT id_venda), 0) ticket_medio
+        FROM fato_vendas
+        WHERE loja_id = :store_id AND ano = :ano AND mes = :mes
+          AND status = 'CONCLUIDA'
+        GROUP BY canal_venda, forma_pagamento
+        ORDER BY receita DESC
+        """,
+        params,
+    )
+    status_mix = fetch_all(
+        engine,
+        """
+        SELECT status, COUNT(*) registros, COALESCE(SUM(valor_liquido), 0) valor_liquido
+        FROM fato_vendas
+        WHERE loja_id = :store_id AND ano = :ano AND mes = :mes
+        GROUP BY status
+        ORDER BY registros DESC
+        """,
+        params,
+    )
+    quality = fetch_all(
+        engine,
+        """
+        SELECT
+            data_referencia,
+            COUNT(*) arquivos,
+            COUNT(*) FILTER (WHERE status = 'PROCESSED') processados,
+            COUNT(*) FILTER (WHERE status = 'REPROCESSED') reprocessados,
+            COUNT(*) FILTER (WHERE status = 'FAILED') falhas,
+            COALESCE(SUM(registros_lidos), 0) registros_lidos,
+            COALESCE(SUM(registros_validos), 0) registros_validos,
+            COALESCE(SUM(registros_invalidos), 0) registros_invalidos,
+            MAX(updated_at) atualizado_em
+        FROM processed_files
+        WHERE loja_id = :store_id
+        GROUP BY data_referencia
+        ORDER BY data_referencia DESC
+        LIMIT 15
+        """,
+        {"store_id": store_id},
+    )
+    recent_files = fetch_all(
+        engine,
+        """
+        SELECT
+            file_id, file_path, checksum, data_referencia, camada_destino, status,
+            registros_lidos, registros_validos, registros_invalidos,
+            pipeline_version, processed_at, updated_at
+        FROM processed_files
+        WHERE loja_id = :store_id
+        ORDER BY updated_at DESC, file_id DESC
+        LIMIT 15
+        """,
+        {"store_id": store_id},
+    )
+    forecast_result = forecast(engine, forecast_months, 0)
+    forecast_projection = [
+        row for row in forecast_result["store_projection"] if row["loja_id"] == store_id
+    ]
+    ml_history = [
+        {"competencia": row["competencia"], "receita": float(row["receita"] or 0)}
+        for row in history
+    ]
+    ml_prediction = regression_prediction(ml_history, "receita", forecast_months, latest)
+
+    for row in quality:
+        row["taxa_aprovacao"] = approval_rate(row["registros_lidos"], row["registros_invalidos"])
+
+    return {
+        "latest_competence": latest,
+        "forecast_months": forecast_months,
+        "store": store,
+        "overview": overview,
+        "history": history,
+        "products": products,
+        "channels": channels,
+        "status_mix": status_mix,
+        "quality": quality,
+        "recent_files": recent_files,
+        "forecast_projection": forecast_projection,
+        "ml_prediction": ml_prediction,
+    }
